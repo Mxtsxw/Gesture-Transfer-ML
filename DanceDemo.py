@@ -26,10 +26,23 @@ class DanceDemo:
         elif typeOfGen==2:         # VanillaNN
             print("Generator: GenSimpleNN")
             self.generator = GenVanillaNN(self.target, loadFromFile=True, optSkeOrImage=1)
-            self.generator.train( n_epochs=20 )
-        # elif typeOfGen==3:         # VanillaNN
-        #     print("Generator: GenSimpleNN")
-        #     self.generator = GenVanillaNN( self.target, loadFromFile=True, optSkeOrImage=2)
+
+            filename = "models/GenVanillaNN_model.pth"
+
+
+            # load the model
+            self.generator.netG.load_state_dict(torch.load(filename, weights_only=True))
+
+            # self.generator.train( n_epochs=20 )
+
+            # save the model
+            # torch.save(self.generator.netG.state_dict(), filename)
+
+            self.generator.netG.eval()
+
+        elif typeOfGen==3:         # VanillaNN
+            print("Generator: GenSimpleNN")
+            self.generator = GenVanillaNN( self.target, loadFromFile=True, optSkeOrImage=2)
         # elif typeOfGen==4:         # GAN
         #     print("Generator: GenSimpleNN")
         #     self.generator = GenGAN( self.target, loadFromFile=True)
