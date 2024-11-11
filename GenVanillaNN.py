@@ -133,6 +133,8 @@ class GenNNSkeToImage(nn.Module):
             nn.Tanh()  # Tanh activation to normalize output to [-1, 1] for RGB image generation
         )
 
+        self.model.apply(init_weights)
+
         print(self.model)
 
     def forward(self, z):

@@ -33,7 +33,7 @@ class DanceDemo:
             # load the model
             self.generator.netG.load_state_dict(torch.load(filename, weights_only=True))
 
-            # self.generator.train( n_epochs=20 )
+            # self.generator.train( n_epochs=200 )
 
             # save the model
             # torch.save(self.generator.netG.state_dict(), filename)
@@ -43,9 +43,29 @@ class DanceDemo:
         elif typeOfGen==3:         # VanillaNN
             print("Generator: GenSimpleNN")
             self.generator = GenVanillaNN( self.target, loadFromFile=True, optSkeOrImage=2)
-        # elif typeOfGen==4:         # GAN
-        #     print("Generator: GenSimpleNN")
-        #     self.generator = GenGAN( self.target, loadFromFile=True)
+
+            filename = "models/GenVanillaNN_model.pth"
+
+            # load the model
+            self.generator.netG.load_state_dict(torch.load(filename, weights_only=True))
+
+            # self.generator.train( n_epochs=20 )
+
+            # save the model
+            torch.save(self.generator.netG.state_dict(), filename)
+
+            self.generator.netG.eval()
+        elif typeOfGen==4:         # GAN
+            print("Generator: GenGANNN")
+
+            filename = "models/GenVanillaNN_model.pth"
+
+            self.generator = GenGAN( self.target, loadFromFile=True)
+
+            self.generator.train( n_epochs=2000 )
+
+            # save the model
+            torch.save(self.generator.netG.state_dict(), filename)
         else:
             print("DanceDemo: typeOfGen error!!!")
 
@@ -82,7 +102,7 @@ if __name__ == '__main__':
     # VANILLA_NN_SKE = 2
     # VANILLA_NN_Image = 3
     # GAN = 4
-    GEN_TYPE = 2
+    GEN_TYPE = 4
     ddemo = DanceDemo("data/taichi2.mp4", GEN_TYPE)
     #ddemo = DanceDemo("data/taichi1.mp4")
     #ddemo = DanceDemo("data/karate1.mp4")
