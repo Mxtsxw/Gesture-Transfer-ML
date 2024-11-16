@@ -112,7 +112,7 @@ class GenNNSkeToImage(nn.Module):
         self.input_dim = Skeleton.reduced_dim
         self.model = nn.Sequential(
             # Step 1: First ConvTranspose2d layer to expand from (26, 1, 1) to (128, 4, 4)
-            nn.ConvTranspose2d(26, 128, kernel_size=4, stride=1, padding=0),  # (26, 1, 1) -> (128, 4, 4)
+            nn.ConvTranspose2d(self.input_dim, 128, kernel_size=4, stride=1, padding=0),  # (26, 1, 1) -> (128, 4, 4)
             nn.BatchNorm2d(128),
             nn.ReLU(True),
 
@@ -133,8 +133,6 @@ class GenNNSkeToImage(nn.Module):
             nn.Tanh()  # Tanh activation to normalize output to [-1, 1] for RGB image generation
         )
 
-        self.model.apply(init_weights)
-
         print(self.model)
 
     def forward(self, z):
@@ -150,7 +148,7 @@ class GenVanillaNN():
         image_size = 64
         self.netG = GenNNSkeToImage()
         src_transform = None
-        self.filename = 'data/Dance/DanceGenVanillaFromSke.pth'
+        self.filename = 'models/DanceGenVanillaFromSke.pth'
 
         tgt_transform = transforms.Compose([
                             transforms.Resize(image_size),
@@ -165,7 +163,7 @@ class GenVanillaNN():
         if loadFromFile and os.path.isfile(self.filename):
             print("GenVanillaNN: Load=", self.filename)
             print("GenVanillaNN: Current Working Directory: ", os.getcwd())
-            self.netG = torch.load(self.filename)
+            self.netG.load_state_dict(torch.load(self.filename, weights_only=True))
 
 
     def train(self, n_epochs=20):
@@ -183,15 +181,19 @@ class GenVanillaNN():
                 optimizer.step()
             print('Epoch [{}/{}], Loss: {:.4f}'.format(i+1, n_epochs, loss.item()))
 
+        torch.save(self.netG.state_dict(), self.filename)
+
 
     def generate(self, ske):
         """ generator of image from skeleton """
         # TP-TODO (DONE)
 
-        ske_t = self.dataset.preprocessSkeleton(ske)
-        ske_t_batch = ske_t.unsqueeze(0)        # make a batch
-        normalized_output = self.netG(ske_t_batch)
-        res = self.dataset.tensor2image(normalized_output[0])       # get image 0 from the batch
+        with torch.no_grad():
+            ske_t = self.dataset.preprocessSkeleton(ske)
+            ske_t_batch = ske_t.unsqueeze(0)  # make a batch
+            normalized_output = self.netG(ske_t_batch)
+            res = self.dataset.tensor2image(normalized_output[0])  # get image 0 from the batch
+
         return res
 
 

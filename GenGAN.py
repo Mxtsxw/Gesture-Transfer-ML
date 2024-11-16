@@ -28,8 +28,8 @@ class Discriminator(nn.Module):
         super(Discriminator, self).__init__()
         self.ngpu = ngpu
         self.model = nn.Sequential(
-            # input.size()= torch.Size([32, 26, 1, 1])
-            nn.Conv2d(26, 64, 4, 2, 1, bias=False),
+            # input.size()= torch.Size([32, 3, 64, 64])
+            nn.Conv2d(3, 64, 4, 2, 1, bias=False),
             nn.LeakyReLU(0.2, inplace=True),
             # state size. (64) x 32 x 32
             nn.Conv2d(64, 128, 4, 2, 1, bias=False),
@@ -48,8 +48,6 @@ class Discriminator(nn.Module):
             nn.Sigmoid()
         )
 
-        self.model.apply(init_weights)
-
         print(self.model)
 
     def forward(self, input):
@@ -66,9 +64,9 @@ class GenGAN():
         self.netG = GenNNSkeToImage()
         self.netD = Discriminator()
         self.netD.apply(init_weights)
-        self.real_label = 1.
-        self.fake_label = 0.
-        self.filename = 'data/Dance/DanceGenGAN.pth'
+        self.real_label = 0.9
+        self.fake_label = 0.1
+        self.filename = 'models/DanceGenGAN.pth'
         tgt_transform = transforms.Compose(
                             [transforms.Resize((64, 64)),
                             #transforms.Normalize(mean=[0.485, 0.456, 0.406], std=[0.229, 0.224, 0.225])
@@ -80,21 +78,13 @@ class GenGAN():
         self.dataloader = torch.utils.data.DataLoader(dataset=self.dataset, batch_size=32, shuffle=True)
         if loadFromFile and os.path.isfile(self.filename):
             print("GenGAN: Load=", self.filename, "   Current Working Directory=", os.getcwd())
-            self.netG = torch.load(self.filename)
-
+            self.netG.load_state_dict(torch.load(self.filename))
 
     def train(self, n_epochs=20):
 
-        # Initialize BCELoss function
+        # Initialize BCELoss function and L1Loss function
         criterion = nn.BCELoss()
-
-        # Create batch of latent vectors that we will use to visualize
-        #  the progression of the generator
-        fixed_noise = torch.randn(64, 100, 1, 1)
-
-        # Establish convention for real and fake labels during training
-        real_label = 1.
-        fake_label = 0.
+        mse_loss = nn.MSELoss()
 
         # Setup Adam optimizers for both G and D
         optimizerD = torch.optim.Adam(self.netD.parameters(), lr=0.0002, betas=(0.5, 0.999))
@@ -112,16 +102,16 @@ class GenGAN():
         for epoch in range(n_epochs):
             # For each batch in the dataloader
             for i, data in enumerate(self.dataloader, 0):
-
                 ############################
                 # (1) Update D network: maximize log(D(x)) + log(1 - D(G(z)))
                 ###########################
-                ## Train with all-real batch
                 self.netD.zero_grad()
-                # Format batch
-                real_cpu = data[0].to(torch.float32)
+
+                # Train with all-real batch
+                real_cpu = data[1]
                 b_size = real_cpu.size(0)
-                label = torch.full((b_size,), real_label, dtype=torch.float32)
+                label = torch.full((b_size,), self.real_label, dtype=torch.float)
+
                 # Forward pass real batch through D
                 output = self.netD(real_cpu).view(-1)
                 # Calculate loss on all-real batch
@@ -130,12 +120,11 @@ class GenGAN():
                 errD_real.backward()
                 D_x = output.mean().item()
 
-                ## Train with all-fake batch
-                # Generate batch of latent vectors
-                noise = torch.randn(b_size, 100, 1, 1)
-                # Generate fake image batch with G
+                # Train with all-fake batch
+                noise = data[0]  # noise input for generator
                 fake = self.netG(noise)
-                label.fill_(fake_label)
+                label.fill_(self.fake_label)
+
                 # Classify all fake batch with D
                 output = self.netD(fake.detach()).view(-1)
                 # Calculate D's loss on the all-fake batch
@@ -143,46 +132,77 @@ class GenGAN():
                 # Calculate the gradients for this batch
                 errD_fake.backward()
                 D_G_z1 = output.mean().item()
+
                 # Add the gradients from the all-real and all-fake batches
                 errD = errD_real + errD_fake
                 # Update D
                 optimizerD.step()
 
                 ############################
-                # (2) Update G network: maximize log(D(G(z)))
+                # (2) Update G network: maximize log(D(G(z))) + L1 loss
                 ###########################
                 self.netG.zero_grad()
-                label.fill_(real_label)
-                # Since we just updated D, perform another forward pass of all-fake batch through D
+                label.fill_(self.real_label)
+
+                # Forward pass fake batch through D again
                 output = self.netD(fake).view(-1)
-                # Calculate G's loss based on this output
-                errG = criterion(output, label)
+                # Calculate G's loss based on D's output
+                errG_adv = criterion(output, label)
+
+                # Calculate MSE loss between generated image and real image
+                errG_l1 = mse_loss(fake, real_cpu)
+
+                # Total Generator loss
+                errG = errG_adv + 100 * errG_l1  # Weighted sum of adversarial loss and L1 loss
+
                 # Calculate gradients for G
                 errG.backward()
                 D_G_z2 = output.mean().item()
+
                 # Update G
                 optimizerG.step()
 
                 # Output training stats
                 if i % 50 == 0:
-                    print('[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
-                          % (epoch, n_epochs, i, len(self.dataloader),
-                             errD.item(), errG.item(), D_x, D_G_z1, D_G_z2))
+                    print(
+                        '[%d/%d][%d/%d]\tLoss_D: %.4f\tLoss_G: %.4f\tLoss_G_L1: %.4f\tD(x): %.4f\tD(G(z)): %.4f / %.4f'
+                        % (epoch, n_epochs, i, len(self.dataloader),
+                           errD.item(), errG_adv.item(), errG_l1.item(), D_x, D_G_z1, D_G_z2))
 
                 # Save Losses for plotting later
                 G_losses.append(errG.item())
                 D_losses.append(errD.item())
 
+                # Check how the generator is doing by saving G's output on fixed_noise
+                if (iters % 500 == 0) or ((epoch == n_epochs - 1) and (i == len(self.dataloader) - 1)):
+                    with torch.no_grad():
+                        fake = self.netG(data[0]).detach().cpu()
+                    img_list.append(fake)
 
+                iters += 1
 
+        print("Training finished")
+        # Save the model state_dict
+        torch.save(self.netG.state_dict(), self.filename)
+
+        # Plot the training losses
+        plt.figure(figsize=(10, 5))
+        plt.title("Generator and Discriminator Loss During Training")
+        plt.plot(G_losses, label="G")
+        plt.plot(D_losses, label="D")
+        plt.xlabel("iterations")
+        plt.ylabel("Loss")
+        plt.legend()
+        plt.show()
 
     def generate(self, ske):           # TP-TODO
         """ generator of image from skeleton """
-        ske_t = torch.from_numpy( ske.__array__(reduced=True).flatten() )
-        ske_t = ske_t.to(torch.float32)
-        ske_t = ske_t.reshape(1,Skeleton.reduced_dim,1,1) # ske.reshape(1,Skeleton.full_dim,1,1)
-        normalized_output = self.netG(ske_t)
-        res = self.dataset.tensor2image(normalized_output[0])
+        with torch.no_grad():
+            ske_t = torch.from_numpy(ske.__array__(reduced=True).flatten())
+            ske_t = ske_t.to(torch.float32)
+            ske_t = ske_t.reshape(1, Skeleton.reduced_dim, 1, 1)  # ske.reshape(1,Skeleton.full_dim,1,1)
+            normalized_output = self.netG(ske_t)
+            res = self.dataset.tensor2image(normalized_output[0])
         return res
 
 
@@ -205,7 +225,7 @@ if __name__ == '__main__':
     if True:    # train or load
         # Train
         gen = GenGAN(targetVideoSke, False)
-        gen.train(4) #5) #200)
+        gen.train(200) #5) #200)
     else:
         gen = GenGAN(targetVideoSke, loadFromFile=True)    # load from file        
 
