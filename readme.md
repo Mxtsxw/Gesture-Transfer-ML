@@ -1,18 +1,20 @@
 
 # Gesture transfer and person image generation 
 
-> À partir d'une vidéo d'une personne source et d'une autre d'une personne, notre objectif est de générer une nouvelle vidéo de la cible effectuant les mêmes mouvements que la source.
+_Matthieu RANDRIANTSOA_
 
-Ce projet est basé sur le papier [Everybody Dance Now](https://arxiv.org/abs/1808.07371) et utilise le modèle [Mediapipe](https://mediapipe-studio.webapps.google.com/studio/demo/pose_landmarker) pour détecter et générer le squelette du corps.
+> À partir d'une vidéo d'une personne source et d'une autre personne cible, notre objectif est de générer une nouvelle vidéo de la cible effectuant les mêmes mouvements que la source.
+
+Ce projet est basé sur le papier [Everybody Dance Now](https://arxiv.org/abs/1808.07371) et utilise le modèle [Mediapipe](https://mediapipe-studio.webapps.google.com/studio/demo/pose_landmarker) pour générer le squelette du corps.
 
 Ce projet aborde trois approches différentes pour répondre à notre objectif :
-- Calcul de la pose la plus proche de la personne à partir de la vidéo
-- Utilisation d'un réseau de neurones pour générer la pose de la personne cible
-- Utilisation d'un discrimateur similaire à l'architecture GAN pour améliorer la qualité de la vidéo générée
+- Calcul de la pose la plus proche de la personne à partir de la vidéo.
+- Utilisation d'un réseau de neurones pour générer la pose de la personne cible.
+- Utilisation d'un discrimateur similaire à l'architecture GAN pour améliorer la qualité de la vidéo générée.
 
-Les modèles pré-entrainés sont présents dans le dossier `models`. Sont presents :
-- `DanceGenVanillaFromSke.pth` : Modèle pré-entrainé pour l'approche GenVanilla
-- `DanceGenGAN.pth` : Modèle pré-entrainé pour l'approche GAN
+Les modèles pré-entrainés sont présents dans le dossier `models` :
+- `DanceGenVanillaFromSke.pth` : Modèle pré-entrainé pour l'approche GenVanilla.
+- `DanceGenGAN.pth` : Modèle pré-entrainé pour l'approche GAN.
 
 # Exécution
 
@@ -38,7 +40,7 @@ if __name__ == '__main__':
 Les scripts d'entrainement sont également exécutables en lançant les scripts `GenVanillaNN.py` et `GenGAN.py`.
 Ces fichiers permettent d'entrainer les modèles et de les enregistrer (le nombre d'époques peut être variable).
 
-PS : Il se peut également que les images d'entrainement en soient pas présentes dans le dossier `data`. Il sera alors nécessaire d'exécuter le script `VideoSkeleton.py` au préalable.
+PS : Il se peut également que les images d'entrainement ne soient pas présentes dans le dossier `data`. Il sera alors nécessaire d'exécuter le script `VideoSkeleton.py` au préalable.
 
 # GenNeirest
 
@@ -156,7 +158,7 @@ La boucle d'apprentissage a légèrement été modifiée pour prendre en entrée
 ## Limitations
 
 Bien que les résultats soient plus satisfaisants que les deux approches précédentes, la qualité des poses générées n'est pas parfaite. Nous pouvons distinguer la silhouette de la personne, mais l'image n'est pas réaliste.
-Il serait intéressant d'entrainer le modèle sur un plus grand nombre d'epochs pour obtenir des résultats plus satisfaisants. Utiliser des images de meilleure qualité pourrait également améliorer la qualité des poses générées.
+Il serait intéressant d'entrainer le modèle sur un plus grand nombre d'epochs pour obtenir des résultats plus satisfaisants. Utiliser des images de meilleures qualités pourrait également améliorer la qualité des poses générées.
 
 
 
